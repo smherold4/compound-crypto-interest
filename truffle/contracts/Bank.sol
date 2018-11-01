@@ -1,17 +1,13 @@
-/*
-Implements EIP20 token standard: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md
-.*/
-
 pragma solidity ^0.4.24;
 
 contract Bank {
 
     struct Investment {
-        address investor;
         uint deposited_at;
         int amount;
         int interest_rate;
         uint paid_at;
+        int paid_amount;
     }
 
     struct Scientific {
@@ -21,32 +17,38 @@ contract Bank {
 
     // Investment[] public investments;
 
-    mapping (address => int) public balances;
     mapping (address => Investment) public investments;
-    string public symbol;
+    int public interest_rate;
+    address public owner = msg.sender;
+    uint public creationTime = now;
 
-    constructor(string _tokenSymbol) public {
-        symbol = _tokenSymbol;
+    constructor(int _interestRate) public {
+        interest_rate = _interestRate;
     }
 
-    function pay(address _investor, uint current_timestamp) public returns (bool) {
+    function withdraw(address _investor, uint current_timestamp) public returns (bool) {
+        // TODO investor should pay the txn fees, we should record those fees
         Investment memory investment = investments[_investor];
         require(investment.paid_at == 0);
-        balances[investment.investor] += 100000000;//amountOwed(_investor, current_timestamp);
         investment.paid_at = current_timestamp;
-        investments[investment.investor] = investment;
+        investment.paid_amount = amountOwed(_investor);
+        investments[_investor] = investment;
         return true;
     }
 
-    function amountOwed(address _investor, uint current_timestamp) public view returns (int, int) {
+    function amountOwed(address _investor) public view returns (int) {
       Investment memory investment = investments[_investor];
+
+      if (investment.paid_at != 0) {
+        return 0;
+      }
       Scientific memory r = Scientific(investment.interest_rate*1e11/100, -11); //interest rate
       Scientific memory n = Scientific(31536, 3); // seconds in a year
 
       Scientific memory periodic_rate = Scientific(r.base/n.base, r.exp - n.exp);
       periodic_rate.base = periodic_rate.base + 1.0e14; //we know the exp must be at -14 so we add Decimal(1e14, -14)
 
-      uint num_periods = current_timestamp - investment.deposited_at;
+      uint num_periods = now - investment.deposited_at;
       require(num_periods >= 0);
 
       Scientific memory result = Scientific(investment.amount, 0);
@@ -70,45 +72,34 @@ contract Bank {
           result.exp = result.exp + 1;
         }
       }
-      return (result.base, corrects);
+      return result.base;
     }
 
-    function invest(address _investor, int _amount, int _interest_rate) public returns (bool) {
-       Investment memory investment = Investment(
-         _investor,
-         block.timestamp,
-         _amount,
-         _interest_rate,
-         0
-       );
-       investments[_investor] = investment;
-       return true;
-    }
-
-    //views
-
-    function balanceOf(address _investor) public view returns (int balance) {
-        return balances[_investor];
-    }
-
-    function getInvestmentAmount(address _investor) public view returns (int) {
+    function getInvestment(address _investor) public view returns (int, int, uint, uint, int) {
       Investment memory investment = investments[_investor];
-      return investment.amount;
+      return (
+        investment.amount,
+        investment.interest_rate,
+        investment.deposited_at,
+        investment.paid_at,
+        investment.paid_amount
+      );
     }
 
-    function getInvestmentDepositedAt(address _investor) public view returns (uint) {
-      Investment memory investment = investments[_investor];
-      return investment.deposited_at;
+    function setInterestRate(int _newInterestRate) public returns (bool) {
+      require(msg.sender == owner);
+      interest_rate = _newInterestRate;
+      return true;
     }
 
-    function getInvestmentPaidAt(address _investor) public view returns (uint) {
-      Investment memory investment = investments[_investor];
-      return investment.paid_at;
-    }
-
-    function getInvestmentInterestRate(address _investor) public view returns (int) {
-      Investment memory investment = investments[_investor];
-      return investment.interest_rate;
+    function() public payable {
+      Investment memory investment = investments[msg.sender];
+      investment.deposited_at = now;
+      investment.amount = int(msg.value) + amountOwed(msg.sender);
+      investment.interest_rate = interest_rate;
+      investment.paid_at = 0;
+      investment.paid_amount = 0;
+      investments[msg.sender] = investment;
     }
 
 }
