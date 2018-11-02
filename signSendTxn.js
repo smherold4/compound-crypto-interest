@@ -1,7 +1,7 @@
 const Web3 = require('web3');
 var fs = require('fs');
 const KEYSTORE_PASSWORD = 'mountdewmountdew';
-const CONTRACT_ADDR = '0xdcc0fd45f89fa3a04a3a80e0e3a9a48cef114772';
+const CONTRACT_ADDR = '0x7a47579db6fc0990cddd4429b5b806c34efaee74';
 
 const web3 = new Web3(new Web3.providers.HttpProvider("http://127.0.0.1:8543"));
 
@@ -21,8 +21,8 @@ function sendTxn(decryptedAccount, toAddress) {
   var rawTransaction = {
     "from": decryptedAccount.address,
     "to": toAddress,
-    "value": web3.utils.toHex(web3.utils.toWei("0.18", "ether")),
-    "gas": 200000,
+    "value": web3.utils.toHex(web3.utils.toWei("3.30", "ether")),
+    "gas": 2000000,
     "chainId": 143
   };
 

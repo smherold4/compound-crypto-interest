@@ -5,7 +5,7 @@ var Bank = artifacts.require("./Bank.sol");
 
 module.exports = function(callback) {
   Bank.deployed().then(function(contract) {
-    return contract.pay(INVESTOR)
+    return contract.withdraw(INVESTOR)
   }).then(function(result) {
     console.log(result);
   }).catch(function(err) {
